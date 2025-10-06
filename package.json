@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "build": "tsc",
+    "upload-blocklist": "node dist/upload-blocklist.js"
+  }
+}
