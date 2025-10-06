@@ -1,0 +1,30 @@
+name: Update OISD blocklist to KV
+
+on:
+  schedule:
+    - cron: "0 2 * * *"  # Jalankan tiap hari jam 09:00 WIB (02:00 UTC)
+  workflow_dispatch:      # Bisa dijalankan manual
+
+jobs:
+  update-oisd:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Run upload script
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_NAMESPACE_ID: ${{ secrets.CF_NAMESPACE_ID }}
+        run: |
+          npx ts-node upload-blocklist.ts https://big.oisd.nl/
