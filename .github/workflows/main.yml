@@ -26,5 +26,10 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_NAMESPACE_ID: ${{ secrets.CF_NAMESPACE_ID }}
-        run: |
-          npx ts-node upload-blocklist.ts https://big.oisd.nl/
+          
+      - name: Build TypeScript
+        run: npm run build
+      
+      - name: Upload blocklist ke KV
+        run: npm run upload-blocklist https://big.oisd.nl/
+
