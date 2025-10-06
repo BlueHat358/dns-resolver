@@ -2,13 +2,12 @@ name: Update OISD Blocklist
 
 on:
   schedule:
-    - cron: "0 2 * * *"  # Tiap hari jam 09:00 WIB
+    - cron: "0 2 * * *" # Setiap hari jam 09:00 WIB
   workflow_dispatch:
 
 jobs:
   update-oisd:
     runs-on: ubuntu-latest
-
     env:
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
       CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
@@ -24,7 +23,7 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Jalankan upload script
-        run: npx ts-node upload-blocklist.ts https://big.oisd.nl/
+      - name: Jalankan upload
+        run: node upload-blocklist.js https://big.oisd.nl/
