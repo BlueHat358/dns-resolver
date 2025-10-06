@@ -1,6 +1,12 @@
 {
   "scripts": {
-    "build": "tsc",
-    "upload-blocklist": "node dist/upload-blocklist.js"
+    "upload-blocklist": "ts-node upload-blocklist.ts"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
   }
 }
