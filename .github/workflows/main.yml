@@ -2,8 +2,8 @@ name: Update OISD blocklist to KV
 
 on:
   schedule:
-    - cron: "0 2 * * *"  # Jalankan tiap hari jam 09:00 WIB (02:00 UTC)
-  workflow_dispatch:      # Bisa dijalankan manual
+    - cron: "0 2 * * *"
+  workflow_dispatch:
 
 jobs:
   update-oisd:
@@ -21,15 +21,16 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler
 
-      - name: Run upload script
+      - name: Build TypeScript
+        run: npm run build
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_NAMESPACE_ID: ${{ secrets.CF_NAMESPACE_ID }}
-          
-      - name: Build TypeScript
-        run: npm run build
-      
+
       - name: Upload blocklist ke KV
         run: npm run upload-blocklist https://big.oisd.nl/
-
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_NAMESPACE_ID: ${{ secrets.CF_NAMESPACE_ID }}
