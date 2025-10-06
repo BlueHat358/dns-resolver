@@ -1,56 +1,69 @@
-import { exec } from "child_process";
-import { promisify } from "util";
+import fetch from "node-fetch";
 
-const execPromise = promisify(exec);
-const KV_NAMESPACE_BINDING = "DNS_BLOCKLIST_OISD";
-const DEFAULT_BLOCKLIST_URL = "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts";
-const FETCH_TIMEOUT_MS = 30000;
-const CONCURRENCY = 10;
+const OISD_URL = process.argv[2] || "https://big.oisd.nl/";
+const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID!;
+const CF_NAMESPACE_ID = process.env.CF_NAMESPACE_ID!;
+const CF_API_TOKEN = process.env.CF_API_TOKEN!;
 
-async function fetchAndParseList(url: string): Promise<Set<string>> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+async function fetchBlocklist(url: string): Promise<string[]> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Fetch gagal: ${res.statusText}`);
+  const text = await res.text();
 
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) throw new Error(`Gagal fetch: ${response.statusText}`);
-
-    const text = await response.text();
-    const domains = new Set<string>();
-
-    for (const line of text.split("\n")) {
-      const parts = line.trim().split(/\s+/);
-      if (parts.length >= 2 && !parts[1].startsWith("#") && parts[1] !== "localhost") {
-        domains.add(parts[1]);
-      }
-    }
-    return domains;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  // Parsing: ambil domain saja
+  return text
+    .split("\n")
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith("#"))
+    .map(l => {
+      const parts = l.split(/\s+/);
+      return parts.length > 1 ? parts[1] : parts[0];
+    })
+    .filter(d => d && !d.includes("localhost"));
 }
 
-async function uploadToKv(domains: Set<string>, binding: string) {
-  const list = Array.from(domains);
-  let success = 0, fail = 0;
+async function pushToKV(domains: string[]) {
+  console.log(`Mengupload ${domains.length} domain ke KV...`);
 
-  for (let i = 0; i < list.length; i += CONCURRENCY) {
-    const batch = list.slice(i, i + CONCURRENCY);
-    await Promise.all(batch.map(async (d) => {
-      try {
-        await execPromise(`npx wrangler kv:key put --binding ${binding} "${d}" "1" --quiet`);
-        success++;
-      } catch { fail++; }
+  const headers = {
+    "Authorization": `Bearer ${CF_API_TOKEN}`,
+    "Content-Type": "application/json",
+  };
+
+  // batched upload
+  const chunkSize = 5000;
+  for (let i = 0; i < domains.length; i += chunkSize) {
+    const batch = domains.slice(i, i + chunkSize);
+    const kvItems = batch.map(domain => ({
+      key: domain,
+      value: "1",
     }));
-    console.log(`Uploaded ${i + batch.length}/${list.length}`);
-  }
 
-  console.log(`✅ Done. Success: ${success}, Fail: ${fail}`);
+    const res = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/storage/kv/namespaces/${CF_NAMESPACE_ID}/bulk`,
+      {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(kvItems),
+      }
+    );
+
+    const json = await res.json();
+    if (!json.success) {
+      console.error(`❌ Gagal upload batch ke-${i / chunkSize}:`, json.errors);
+    } else {
+      console.log(`✅ Batch ${i / chunkSize + 1} (${batch.length} keys) sukses`);
+    }
+  }
 }
 
 (async () => {
-  const url = process.argv[2] || DEFAULT_BLOCKLIST_URL;
-  const domains = await fetchAndParseList(url);
-  console.log(`Parsed ${domains.size} domains. Uploading...`);
-  await uploadToKv(domains, KV_NAMESPACE_BINDING);
+  try {
+    const domains = await fetchBlocklist(OISD_URL);
+    console.log(`Berhasil ambil ${domains.length} domain`);
+    await pushToKV(domains);
+  } catch (err) {
+    console.error("❌ Error:", err);
+    process.exit(1);
+  }
 })();
