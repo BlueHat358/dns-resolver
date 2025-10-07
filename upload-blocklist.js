@@ -55,7 +55,7 @@ async function uploadToKV(domains) {
     "Content-Type": "application/json",
   };
 
-  const chunkSize = 10000;
+  const chunkSize = 5000;
   for (let i = 0; i < domains.length; i += chunkSize) {
     const batch = domains.slice(i, i + chunkSize);
     const kvItems = batch.map(domain => ({
