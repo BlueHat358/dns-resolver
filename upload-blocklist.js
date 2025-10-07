@@ -21,22 +21,23 @@ async function fetchBlocklist(url) {
 
   for (const line of text.split("\n")) {
     const trimmed = line.trim();
-    // Abaikan baris komentar (dimulai dengan '!') atau baris kosong
-    if (!trimmed || trimmed.startsWith("!")) continue;
+
+    // Aturan #1: Abaikan baris kosong, header [Adblock Plus], atau komentar !
+    if (!trimmed || trimmed.startsWith("!") || trimmed.startsWith("[")) {
+      continue;
+    }
     
-    // --- INI ADALAH LOGIKA PARSING YANG SUDAH DIPERBAIKI ---
     let domain = trimmed;
-    
-    // 1. Hapus '||' dari awal jika ada
+
+    // Aturan #2: Bersihkan karakter khusus Adblock Plus
     if (domain.startsWith('||')) {
         domain = domain.substring(2);
     }
-    // 2. Hapus '^' dari akhir jika ada
     if (domain.endsWith('^')) {
         domain = domain.slice(0, -1);
     }
-    // --------------------------------------------------------
-
+    
+    // Pastikan hasilnya adalah domain yang valid dan bukan localhost
     if (domain && !domain.includes("localhost")) {
       domains.push(domain);
     }
